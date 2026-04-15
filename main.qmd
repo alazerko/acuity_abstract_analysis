@@ -1,0 +1,77 @@
+---
+title: "analysis"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+library(readr)
+dat <- shock_acuity_metrics_copy <- read_csv("shock_acuity_metrics copy.csv")
+
+
+#names(dat)[1] <- "Participant"
+```
+
+```{r}
+dat <- dat %>%
+  rename(
+    id = "Participant",
+    cond_name = "Condition",
+    cond = "ConditionPercent",
+    head_acc = "ProximalHighG2",
+    leg_acc = "DistalHighG2",
+    gap_size = "VisualAcuityPixels"
+  ) %>% 
+  mutate(id = factor(id))
+
+
+```
+
+```{r}
+str(dat)
+head(dat)
+
+r2_labels <- dat %>%
+  group_by(id) %>%
+  summarise(
+    r2 = summary(lm(gap_size ~ head_acc, data = cur_data()))$r.squared,
+    head_acc = max(head_acc),
+    pixel_size = max(gap_size) + 1
+  ) %>%
+  mutate(label = paste0(id, ": R² = ", round(r2, 2)))
+
+graph <- ggplot(dat, aes(x = head_acc, y = gap_size, colour = id)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_text(
+    data = r2_labels,
+    aes(x = head_acc, y = pixel_size, label = label, color = id),
+    size = 3,
+    hjust = 1
+  ) +
+  labs(
+    title = "Landolt ring gap vs. head acceleration by participant",
+    x = "Head acceleration (g)",
+    y = "Landolt ring gap (pixels)"
+  )
+
+
+graph
+```
+
+```{r}
+ggplot(dat, aes(x = head_acc, y = gap_size)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~ id, scales = "free") +
+  labs(
+    title = "Landolt ring gap vs. head acceleration by participant",
+    x = "Head acceleration (g)",
+    y = "Landolt ring gap (pixels)"
+  )
+```
