@@ -64,7 +64,7 @@ head_graph_cond_facet <- ggplot(dat, aes(x = head_acc, y = gap_size)) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   facet_wrap(~ id, scales = "free") +
   labs(
-    title = "Landolt ring gap vs. head acceleration by participant",
+    title = "Landolt ring gap vs. head acceleration by condition %",
     x = "Head acceleration (g)",
     y = "Landolt ring gap (pixels)"
   )
@@ -115,7 +115,7 @@ leg_graph_cond_facet <- ggplot(dat, aes(x = leg_acc, y = gap_size)) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   facet_wrap(~ id, scales = "free") +
   labs(
-    title = "Landolt ring gap vs. tibial acceleration by participant",
+    title = "Landolt ring gap vs. tibial acceleration by condition %",
     x = "Tibial acceleration (g)",
     y = "Landolt ring gap (pixels)"
   )
