@@ -1,5 +1,5 @@
 ---
-title: "analysis"
+title: "group_condition"
 format: pdf
 editor: visual
 ---
@@ -7,14 +7,9 @@ editor: visual
 ```{r}
 library(ggplot2)
 library(dplyr)
-```
 
-```{r}
 library(readr)
 dat <- shock_acuity_metrics_copy <- read_csv("shock_acuity_metrics copy.csv")
-
-
-#names(dat)[1] <- "Participant"
 ```
 
 ```{r}
@@ -27,45 +22,44 @@ dat <- dat %>%
     leg_acc = "DistalHighG2",
     gap_size = "VisualAcuityPixels"
   ) %>% 
-  mutate(id = factor(id))
-
-
+  mutate(cond = factor(cond))
 ```
+
+#### Head Acceleration 
 
 ```{r}
 str(dat)
 head(dat)
 
 r2_labels <- dat %>%
-  group_by(id) %>%
+  group_by(cond) %>%
   summarise(
     r2 = summary(lm(gap_size ~ head_acc, data = cur_data()))$r.squared,
     head_acc = max(head_acc),
     pixel_size = max(gap_size) + 1
   ) %>%
-  mutate(label = paste0(id, ": R² = ", round(r2, 2)))
+  mutate(label = paste0(cond, ": R² = ", round(r2, 2)))
 
-graph <- ggplot(dat, aes(x = head_acc, y = gap_size, colour = id)) +
+head_graph_cond <- ggplot(dat, aes(x = head_acc, y = gap_size, colour = cond)) +
   geom_point(size = 2, alpha = 0.7) +
   geom_smooth(method = "lm", se = FALSE) +
   geom_text(
     data = r2_labels,
-    aes(x = head_acc, y = pixel_size, label = label, color = id),
+    aes(x = head_acc, y = pixel_size, label = label, colour = cond),
     size = 3,
     hjust = 1
   ) +
   labs(
-    title = "Landolt ring gap vs. head acceleration by participant",
+    title = "Landolt ring gap vs. head acceleration by condition %",
     x = "Head acceleration (g)",
     y = "Landolt ring gap (pixels)"
   )
 
 
-graph
-```
 
-```{r}
-ggplot(dat, aes(x = head_acc, y = gap_size)) +
+
+
+head_graph_cond_facet <- ggplot(dat, aes(x = head_acc, y = gap_size)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   facet_wrap(~ id, scales = "free") +
@@ -74,30 +68,52 @@ ggplot(dat, aes(x = head_acc, y = gap_size)) +
     x = "Head acceleration (g)",
     y = "Landolt ring gap (pixels)"
   )
+
+
+
+head_graph_cond_head
+head_graph_cond_facet_head
+
 ```
+
+#### Tibial acceleration
 
 ```{r}
 str(dat)
 head(dat)
 
 r2_labels <- dat %>%
-  group_by(id) %>%
+  group_by(cond) %>%
   summarise(
     r2 = summary(lm(gap_size ~ leg_acc, data = cur_data()))$r.squared,
     leg_acc = max(leg_acc),
-    gap_size = max(gap_size) + 1
+    pixel_size = max(gap_size) + 1
   ) %>%
-  mutate(label = paste0(id, ": R² = ", round(r2, 2)))
+  mutate(label = paste0(cond, ": R² = ", round(r2, 2)))
 
-graph_leg <- ggplot(dat, aes(x = leg_acc, y = gap_size, colour = id)) +
+leg_graph_cond <- ggplot(dat, aes(x = leg_acc, y = gap_size, colour = cond)) +
   geom_point(size = 2, alpha = 0.7) +
   geom_smooth(method = "lm", se = FALSE) +
   geom_text(
     data = r2_labels,
-    aes(x = leg_acc, y = gap_size, label = label, color = id),
+    aes(x = leg_acc, y = pixel_size, label = label, colour = cond),
     size = 3,
     hjust = 1
   ) +
+  labs(
+    title = "Landolt ring gap vs. tibial acceleration by condition %",
+    x = "Tibial acceleration (g)",
+    y = "Landolt ring gap (pixels)"
+  )
+
+
+
+
+
+leg_graph_cond_facet <- ggplot(dat, aes(x = leg_acc, y = gap_size)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  facet_wrap(~ id, scales = "free") +
   labs(
     title = "Landolt ring gap vs. tibial acceleration by participant",
     x = "Tibial acceleration (g)",
@@ -105,19 +121,7 @@ graph_leg <- ggplot(dat, aes(x = leg_acc, y = gap_size, colour = id)) +
   )
 
 
-graph_leg
 
-
-facet_leg <- ggplot(dat, aes(x = leg_acc, y = gap_size)) +
-  geom_point(alpha = 0.6) +
-  geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  facet_wrap(~ id, scales = "free") +
-  labs(
-    title = "Landolt ring gap vs. tibial acceleration by participant",
-    x = "Leg acceleration (g)",
-    y = "Landolt ring gap (pixels)"
-  )
-
-
-facet_leg
+leg_graph_cond
+leg_graph_cond_facet
 ```
