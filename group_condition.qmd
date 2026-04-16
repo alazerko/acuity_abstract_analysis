@@ -71,8 +71,8 @@ head_graph_cond_facet <- ggplot(dat, aes(x = head_acc, y = gap_size)) +
 
 
 
-head_graph_cond_head
-head_graph_cond_facet_head
+head_graph_cond
+head_graph_cond_facet
 
 ```
 
