@@ -32,6 +32,8 @@ dat <- dat %>%
 
 ```
 
+#### Head Acceleration vs acuity by participant 
+
 ```{r}
 str(dat)
 head(dat)
@@ -75,6 +77,8 @@ ggplot(dat, aes(x = head_acc, y = gap_size)) +
     y = "Landolt ring gap (pixels)"
   )
 ```
+
+#### Tibial acceleration vs acuity by participant
 
 ```{r}
 str(dat)
