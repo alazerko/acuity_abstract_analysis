@@ -25,7 +25,7 @@ dat <- dat %>%
   mutate(cond = factor(cond))
 ```
 
-#### Head Acceleration 
+#### Head Acceleration
 
 ```{r}
 str(dat)
