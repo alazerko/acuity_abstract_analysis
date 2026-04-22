@@ -1,0 +1,154 @@
+---
+title: "bayes_mixed_eff"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(brms)
+library(bayesplot)
+library(tidybayes)
+library(readr)
+
+
+dat <- shock_acuity_metrics_copy <- read_csv("shock_acuity_metrics copy.csv")
+
+dat <- dat %>%
+  rename(
+    id = "Participant",
+    cond_name = "Condition",
+    cond = "ConditionPercent",
+    head_acc = "ProximalHighG2",
+    leg_acc = "DistalHighG2",
+    gap_size = "VisualAcuityPixels"
+  ) 
+```
+
+```{r}
+fit <- brm(
+  formula = gap_size ~ leg_acc + (leg_acc | id),
+  data = dat,
+  family = gaussian(),
+  chains = 4,
+  iter = 4000,
+  warmup = 1000,
+  cores = 4,
+  seed = 123
+)
+
+summary(fit)
+
+
+plot(fit)
+
+pp_check(fit)
+```
+
+```{r}
+posterior <- as_draws_df(fit)
+slope_samples <- posterior$b_leg_acc
+mean(slope_samples)
+
+plot(density(slope_samples),
+     main = "Posterior of slope (leg_acc)",
+     xlab = "Slope")
+
+
+slope_df <- data.frame(slope = slope_samples)
+
+ci <- quantile(slope_samples, c(0.025, 0.975))
+
+ci
+
+ggplot(slope_df, aes(x = slope)) +
+  geom_density(fill = "steelblue", alpha = 0.4) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = ci[1], linetype = "dotted") +
+  geom_vline(xintercept = ci[2], linetype = "dotted") +
+  labs(
+    title = "Posterior Distribution of Slope (leg_acc)",
+    x = "Slope",
+    y = "Density"
+  )
+```
+
+```{r}
+dat$id <- as.factor(dat$id)
+
+pop_fit <- fitted(
+  fit,
+  newdata = newdat,
+  re_formula = NA,   # population-level only, ignoring participant-specific random effects
+  probs = c(0.025, 0.975)
+)
+
+pop_df <- cbind(newdat, pop_fit)
+
+grid <- expand.grid(
+  leg_acc = seq(min(dat$leg_acc), max(dat$leg_acc), length.out = 100),
+  id = unique(dat$id)
+)
+
+sub_fit <- fitted(fit, newdata = grid, re_formula = NULL)
+
+grid <- cbind(grid, sub_fit)
+
+```
+
+```{r}
+ggplot() +
+
+  # raw data
+  geom_point(
+    data = dat,
+    aes(x = leg_acc, y = gap_size, color = "Observed data"),
+    alpha = 0.4, size = 1.6
+  ) +
+
+  # subject-specific lines
+  geom_line(
+    data = grid,
+    aes(x = leg_acc, y = Estimate, group = id, color = "Subject fits"),
+    alpha = 0.25
+  ) +
+
+  # population CI ribbon 
+  geom_ribbon(
+    data = pop_df,
+    aes(x = leg_acc, ymin = Q2.5, ymax = Q97.5),
+    fill = "steelblue",
+    alpha = 0.2,
+    inherit.aes = FALSE
+  ) +
+
+  # population mean line
+  geom_line(
+    data = pop_df,
+    aes(x = leg_acc, y = Estimate, color = "Population mean"),
+    linewidth = 1.2
+  ) +
+
+  # manual color + legend control
+  scale_color_manual(
+    name = "Legend",
+    values = c(
+      "Observed data" = "black",
+      "Subject fits" = "gray60",
+      "Population mean" = "steelblue4"
+    )
+  ) +
+
+  labs(
+    title = "Tibial Acceleration vs Landolt Ring Gap Size",
+    x = "Tibial Acceleration (g^2)",
+    y = "Landolt Ring Gap Size (Pixels)"
+  ) +
+
+  theme_classic(base_size = 14) +
+
+  theme(
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  )
+```
