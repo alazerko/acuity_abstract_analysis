@@ -14,6 +14,7 @@ library(readr)
 
 dat <- shock_acuity_metrics_copy <- read_csv("shock_acuity_metrics copy.csv")
 
+
 dat <- dat %>%
   rename(
     id = "Participant",
@@ -26,15 +27,41 @@ dat <- dat %>%
 ```
 
 ```{r}
-fit <- brm(
-  formula = gap_size ~ leg_acc + (leg_acc | id),
+summary(dat)
+```
+
+```{r}
+dat$leg_acc_z <- scale(dat$leg_acc)
+
+priors <- c(
+  prior(normal(0, 1), class = "b"),
+  prior(normal(5.5, 2), class = "Intercept"),
+  prior(exponential(1), class = "sd"),
+  prior(exponential(1), class = "sigma")
+)
+
+fit_prior <- brm(
+  gap_size ~ leg_acc_z + (leg_acc_z | id),
   data = dat,
-  family = gaussian(),
+  prior = priors,
+  sample_prior = "only"
+)
+
+pp_check(fit_prior)
+```
+
+```{r}
+
+fit <- brm(
+  formula = gap_size ~ leg_acc_z + (leg_acc_z | id),
+  data = dat,
+  family = gaussian,
+  prior = priors,
   chains = 4,
   iter = 4000,
   warmup = 1000,
   cores = 4,
-  seed = 123
+  seed = 123,
 )
 
 summary(fit)
@@ -43,11 +70,13 @@ summary(fit)
 plot(fit)
 
 pp_check(fit)
+
+#get_prior(fit)
 ```
 
 ```{r}
 posterior <- as_draws_df(fit)
-slope_samples <- posterior$b_leg_acc
+slope_samples <- posterior$b_leg_acc_z
 mean(slope_samples)
 
 plot(density(slope_samples),
@@ -67,32 +96,63 @@ ggplot(slope_df, aes(x = slope)) +
   geom_vline(xintercept = ci[1], linetype = "dotted") +
   geom_vline(xintercept = ci[2], linetype = "dotted") +
   labs(
-    title = "Posterior Distribution of Slope (leg_acc)",
+    title = "Posterior Distribution of Slope",
     x = "Slope",
     y = "Density"
   )
+
+
+prior_draws <- as_draws_df(fit_prior)
+prior_slope <- prior_draws$b_leg_acc_z
+
+# approximating likelihood
+mle_fit <- lm(gap_size ~ leg_acc_z, data = dat)
+mle_mean <- coef(mle_fit)["leg_acc_z"]
+mle_se   <- summary(mle_fit)$coefficients["leg_acc_z", "Std. Error"]
+
+xgrid <- seq(-3, 3, length.out = 500)
+df_l <- data.frame(
+  x = xgrid,
+  likelihood_dens = dnorm(xgrid, mean = mle_mean, sd = mle_se))
+
+
+#df_l$likelihood_dens <- dnorm(df_l$x, mean = 0.1, sd = 0.34)
+
+
+
+ggplot() +
+  geom_density(aes(prior_slope, color = "Prior"), fill = "lightgreen", alpha = 0.2) +
+  geom_area(data = df_l, aes(x = x, y = likelihood_dens, color = "Likelihood"), 
+            alpha = 0.2, fill = "red", linetype = "dashed") +
+  geom_density(aes(slope_samples, color = "Posterior"), fill = "lightblue", alpha = 0.2) +
+  labs(x = "Regression Slope", y = "Density (scaled)", title = "Prior, Likelihood (approx.), and Posterior Distributions", color = "") +
+  scale_color_manual(values = c("Prior" = "green", "Likelihood" = "red", "Posterior" = "steelblue")) +
+  theme_classic()
+
+
+      
 ```
 
 ```{r}
-dat$id <- as.factor(dat$id)
+leg_acc_mean <- mean(dat$leg_acc, na.rm = TRUE)
+leg_acc_sd   <- sd(dat$leg_acc, na.rm = TRUE)
 
-pop_fit <- fitted(
-  fit,
-  newdata = newdat,
-  re_formula = NA,   # population-level only, ignoring participant-specific random effects
-  probs = c(0.025, 0.975)
+
+newdat <- data.frame(
+  leg_acc_raw = seq(min(dat$leg_acc), max(dat$leg_acc), length.out = 100)
 )
+newdat$leg_acc_z <- (newdat$leg_acc_raw - leg_acc_mean) / leg_acc_sd
+pop_fit <- fitted(fit, newdata = newdat, re_formula = NA)
+pop_df <- cbind(newdat, as.data.frame(pop_fit))
 
-pop_df <- cbind(newdat, pop_fit)
 
 grid <- expand.grid(
-  leg_acc = seq(min(dat$leg_acc), max(dat$leg_acc), length.out = 100),
+  leg_acc_raw = seq(min(dat$leg_acc), max(dat$leg_acc), length.out = 100),
   id = unique(dat$id)
 )
-
+grid$leg_acc_z <- (grid$leg_acc_raw - leg_acc_mean) / leg_acc_sd
 sub_fit <- fitted(fit, newdata = grid, re_formula = NULL)
-
-grid <- cbind(grid, sub_fit)
+grid_results <- cbind(grid, as.data.frame(sub_fit))
 
 ```
 
@@ -108,15 +168,15 @@ ggplot() +
 
   # subject-specific lines
   geom_line(
-    data = grid,
-    aes(x = leg_acc, y = Estimate, group = id, color = "Subject fits"),
+    data = grid_results,
+    aes(x = leg_acc_raw, y = Estimate, group = id, color = "Subject fits"),
     alpha = 0.25
   ) +
 
   # population CI ribbon 
   geom_ribbon(
     data = pop_df,
-    aes(x = leg_acc, ymin = Q2.5, ymax = Q97.5),
+    aes(x = leg_acc_raw, ymin = Q2.5, ymax = Q97.5),
     fill = "steelblue",
     alpha = 0.2,
     inherit.aes = FALSE
@@ -125,7 +185,7 @@ ggplot() +
   # population mean line
   geom_line(
     data = pop_df,
-    aes(x = leg_acc, y = Estimate, color = "Population mean"),
+    aes(x = leg_acc_raw, y = Estimate, color = "Group mean"),
     linewidth = 1.2
   ) +
 
@@ -135,13 +195,13 @@ ggplot() +
     values = c(
       "Observed data" = "black",
       "Subject fits" = "gray60",
-      "Population mean" = "steelblue4"
+      "Group mean" = "steelblue4"
     )
   ) +
 
   labs(
     title = "Tibial Acceleration vs Landolt Ring Gap Size",
-    x = "Tibial Acceleration (g^2)",
+    x = expression(Tibial~Acceleration~(g^2)),
     y = "Landolt Ring Gap Size (Pixels)"
   ) +
 
@@ -151,4 +211,8 @@ ggplot() +
     legend.position = "top",
     legend.title = element_text(face = "bold")
   )
+```
+
+```{r}
+pp_check(fit)
 ```
