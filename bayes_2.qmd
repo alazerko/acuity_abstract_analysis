@@ -10,6 +10,7 @@ library(brms)
 library(bayesplot)
 library(tidybayes)
 library(readr)
+library(bayestestR)
 
 
 dat <- shock_acuity_metrics_copy <- read_csv("shock_acuity_metrics copy.csv")
@@ -92,12 +93,12 @@ ci
 
 ggplot(slope_df, aes(x = slope)) +
   geom_density(fill = "steelblue", alpha = 0.4) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = mean(slope_samples), linetype = "dashed") +
   geom_vline(xintercept = ci[1], linetype = "dotted") +
   geom_vline(xintercept = ci[2], linetype = "dotted") +
   labs(
-    title = "Posterior Distribution of Slope",
-    x = "Slope",
+    title = expression(Posterior~Distribution~of~the~Group~Mean~Slope~(beta)),
+    x = expression(Group~Mean~Slope~(beta)),
     y = "Density"
   )
 
@@ -200,8 +201,8 @@ ggplot() +
   ) +
 
   labs(
-    title = "Tibial Acceleration vs Landolt Ring Gap Size",
-    x = expression(Tibial~Acceleration~(g^2)),
+    title = "Tibial Shock vs Landolt Ring Gap Size",
+    x = expression(Tibial~Shock~(g^2)),
     y = "Landolt Ring Gap Size (Pixels)"
   ) +
 
@@ -215,4 +216,12 @@ ggplot() +
 
 ```{r}
 pp_check(fit)
+```
+
+```{r}
+hdi <- hdi(fit, ci = 0.95)
+
+hdi
+
+plot(hdi)
 ```
